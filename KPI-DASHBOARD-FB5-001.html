@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>KPI Control Tower — ติดตาม Business Plan Goal</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" />
+<style>
+  :root {
+    --bg: #EEF1F4; --surface: #FFFFFF; --ink: #17253B; --muted: #5B6B7F;
+    --line: #D8DEE6; --plan: #17253B;
+  }
+  * , *::before, *::after { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    min-height: 100vh; background: var(--bg); color: var(--ink);
+    font-family: 'IBM Plex Sans Thai', 'Noto Sans Thai', 'Leelawadee UI', 'Sukhumvit Set', Tahoma, sans-serif;
+    font-size: 14.5px; line-height: 1.55;
+  }
+  .mono { font-family: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Menlo, monospace; font-variant-numeric: tabular-nums; }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid #146C94; outline-offset: 2px; border-radius: 4px; }
+
+  /* ---- header ---- */
+  .kct-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    padding: 14px 22px; background: var(--ink); color: #F4F7FA; position: sticky; top: 0; z-index: 20; }
+  .kct-header-left { display: flex; align-items: center; gap: 12px; }
+  .kct-logo { width: 40px; height: 40px; border: 1.5px solid rgba(255,255,255,.35); border-radius: 8px;
+    display: grid; place-items: center; color: #FFD166; }
+  .kct-title { font-weight: 700; letter-spacing: .14em; font-size: 15px; }
+  .kct-subtitle { font-size: 12px; color: #AEBBCC; }
+  .kct-header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .kct-save { font-size: 11.5px; color: #AEBBCC; margin-right: 4px; }
+  .kct-save.error { color: #FF9E9E; }
+  .kct-mode-toggle { display: flex; border: 1px solid rgba(255,255,255,.3); border-radius: 8px; overflow: hidden; }
+  .kct-mode-toggle button { padding: 6px 14px; background: transparent; border: 0; color: #D7E0EA; font-size: 13px; }
+  .kct-mode-toggle button.on { background: #F4F7FA; color: var(--ink); font-weight: 600; }
+
+  .kct-btn { border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    border-radius: 8px; padding: 7px 14px; font-size: 13px; font-weight: 500; }
+  .kct-header .kct-btn.ghost { background: transparent; color: #D7E0EA; border-color: rgba(255,255,255,.3); }
+  .kct-header .kct-btn.ghost:hover { background: rgba(255,255,255,.1); }
+  .kct-btn.primary { background: #FFD166; border-color: #FFD166; color: #17253B; font-weight: 700; }
+  .kct-btn.primary:hover { filter: brightness(.96); }
+  .kct-btn.ghost:hover { background: #F1F4F7; }
+  .kct-btn.tiny { padding: 3px 9px; font-size: 12px; }
+  .kct-btn.danger { color: #C62828; border-color: #E7B9B9; }
+  .kct-btn.danger.solid { background: #C62828; color: #fff; border-color: #C62828; }
+
+  .kct-main { max-width: 1080px; margin: 0 auto; padding: 22px 22px 60px; }
+
+  /* ---- hero ---- */
+  .kct-hero { display: grid; grid-template-columns: 1.15fr 1fr; gap: 18px; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+  .kct-eyebrow { font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .kct-hero-number { font-size: 52px; font-weight: 600; line-height: 1.1; margin: 4px 0 2px; }
+  .kct-hero-caption { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .kct-hero-lv { font-size: 13px; color: var(--ink); margin-bottom: 12px; }
+  .kct-hero-strips { display: grid; gap: 8px; align-content: center; }
+  .kct-strip { display: flex; align-items: baseline; gap: 10px; border-left: 4px solid; border-radius: 8px; padding: 8px 14px; }
+  .kct-strip-count { font-size: 22px; font-weight: 600; min-width: 34px; text-align: right; }
+  .kct-strip-label { font-weight: 600; }
+  .kct-strip-th { margin-left: auto; font-size: 11.5px; color: var(--muted); }
+
+  /* ---- overall bar & glidepath (signature) ---- */
+  .kct-obar-track, .kct-glide-track { position: relative; height: 18px; background: #E4E9EE;
+    border-radius: 4px; overflow: visible;
+    background-image: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), #D2DAE2 calc(10% - 1px) 10%); }
+  .kct-obar-fill, .kct-glide-fill { position: absolute; top: 3px; bottom: 3px; left: 0; border-radius: 3px;
+    transition: width .5s cubic-bezier(.2,.8,.2,1); min-width: 2px; }
+  .kct-plan-tick { position: absolute; top: -6px; bottom: -6px; width: 0;
+    border-left: 2.5px solid var(--plan); }
+  .kct-plan-tick::after { content: ""; position: absolute; left: 2px; top: 0; bottom: 0; border-left: 1.5px solid var(--plan); opacity: .45; }
+  .kct-plan-flag { position: absolute; top: -16px; left: -2px; transform: translateX(-50%);
+    font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 600; letter-spacing: .06em;
+    color: var(--plan); background: var(--surface); padding: 0 4px; border: 1px solid var(--line); border-radius: 3px; white-space: nowrap; }
+  .kct-lv-tick { position: absolute; top: 1px; bottom: 1px; width: 0; border-left: 1.5px dashed #8B99AB; }
+  .kct-lv-flag { position: absolute; bottom: -15px; left: 0; transform: translateX(-50%);
+    font-family: 'IBM Plex Mono', monospace; font-size: 8.5px; font-weight: 600; color: #8B99AB; white-space: nowrap; }
+  .kct-obar { margin-top: 20px; padding-right: 8px; }
+  .kct-obar-mark { position: absolute; top: 3px; bottom: 3px; width: 1px; background: #9DAABB; }
+  .kct-glide { margin: 22px 0 10px; padding-right: 8px; }
+  .kct-glide.has-lv { margin-bottom: 22px; }
+  .kct-glide-caption { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .kct-glide.has-lv .kct-glide-caption { margin-top: 18px; }
+  @media (prefers-reduced-motion: reduce) { .kct-obar-fill, .kct-glide-fill { transition: none; } }
+
+  /* ---- level ladder (milestone KPI) ---- */
+  .kct-ladder-wrap { margin: 24px 0 8px; padding-right: 8px; }
+  .kct-ladder { display: flex; gap: 4px; }
+  .kct-ladder .seg { position: relative; flex: 1; height: 20px; background: #E4E9EE; border-radius: 4px;
+    display: grid; place-items: center; font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+    color: #8B99AB; font-weight: 600; }
+  .kct-ladder .seg.filled { color: #fff; }
+  .kct-ladder .seg .planflag { position: absolute; top: -16px; left: 50%; transform: translateX(-50%);
+    font-family: 'IBM Plex Mono', monospace; font-size: 9.5px; font-weight: 600; letter-spacing: .06em;
+    color: var(--plan); background: var(--surface); padding: 0 4px; border: 1px solid var(--line); border-radius: 3px; white-space: nowrap; }
+  .kct-ladder-caption { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .kct-next-target { margin-top: 6px; font-size: 12px; color: var(--ink); background: #F6F8FA;
+    border: 1px dashed var(--line); border-radius: 6px; padding: 5px 10px; }
+  .kct-next-target b { font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+
+  /* ---- controls ---- */
+  .kct-controls { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    flex-wrap: wrap; margin: 20px 0 14px; }
+  .kct-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+  .kct-tab { border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+    padding: 6px 14px; font-size: 13px; color: var(--muted); display: flex; gap: 7px; align-items: center; }
+  .kct-tab.on { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 600; }
+  .kct-tab-count { font-size: 11px; opacity: .75; }
+  .kct-sort { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+  .kct-sort select { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--ink); }
+
+  /* ---- KPI cards ---- */
+  .kct-list { display: grid; gap: 12px; }
+  .kct-card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px 14px; }
+  .kct-card-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .kct-card-id { display: flex; gap: 6px; flex-wrap: wrap; }
+  .kct-chip { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: #EDF1F5; color: var(--muted); }
+  .kct-chip.p-high { background: #FBE5E5; color: #C62828; }
+  .kct-chip.p-mid { background: #FBF0DD; color: #C77700; }
+  .kct-chip.p-low { background: #E7F2E7; color: #2E7D32; }
+  .kct-chip.no { background: var(--ink); color: #fff; }
+  .kct-card-name { font-weight: 700; font-size: 15.5px; flex: 1; min-width: 200px; }
+  .kct-card-side { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .kct-status { font-size: 12px; font-weight: 700; padding: 3px 12px; border-radius: 999px; white-space: nowrap; }
+
+  .kct-card-bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .kct-figures { display: flex; gap: 26px; flex-wrap: wrap; }
+  .kct-fig { display: flex; flex-direction: column; gap: 1px; }
+  .kct-fig-label { font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .kct-fig-value { font-size: 15px; }
+  .kct-fig-value.strong { font-weight: 600; font-size: 16px; }
+  .kct-gap-pct { font-size: 12px; opacity: .85; }
+  .kct-card-meta { display: flex; gap: 14px; font-size: 11.5px; color: var(--muted); flex-wrap: wrap; }
+  .kct-note { margin-top: 8px; font-size: 12.5px; color: var(--muted); border-top: 1px dashed var(--line); padding-top: 7px; }
+
+  .kct-quick-btn { background: #F6F8FA; border: 1px dashed #B9C4D0; border-radius: 6px; padding: 2px 8px; text-align: left; }
+  .kct-quick-btn:hover { border-color: #146C94; background: #EFF6FA; }
+  .kct-pencil { font-size: 11px; color: var(--muted); }
+  .kct-quick-wrap { display: flex; align-items: center; gap: 6px; }
+  .kct-quick-input { width: 120px; font-size: 15px; padding: 2px 8px; border: 1.5px solid #146C94; border-radius: 6px;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+  .kct-quick-select { font: inherit; font-size: 14px; padding: 2px 8px; border: 1.5px solid #146C94; border-radius: 6px; background: #fff; }
+  .kct-quick-unit { font-size: 12.5px; color: var(--muted); }
+
+  .kct-empty { background: var(--surface); border: 1px dashed var(--line); border-radius: 12px;
+    padding: 40px; text-align: center; color: var(--muted); }
+
+  /* ---- modal / form ---- */
+  .kct-overlay { position: fixed; inset: 0; background: rgba(23,37,59,.45); display: grid;
+    place-items: center; z-index: 50; padding: 18px; }
+  .kct-overlay[hidden] { display: none; }
+  .kct-modal { background: var(--surface); border-radius: 14px; width: min(760px, 100%);
+    max-height: 90vh; overflow: auto; box-shadow: 0 18px 50px rgba(23,37,59,.3); }
+  .kct-modal-head { display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 20px; border-bottom: 1px solid var(--line); font-weight: 700; font-size: 15px; }
+  .kct-form { padding: 18px 20px 20px; }
+  .kct-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+  .kct-form-grid label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+  .kct-form-grid label.span2 { grid-column: 1 / -1; }
+  .kct-form-grid input, .kct-form-grid select, .kct-form-grid textarea {
+    font: inherit; font-weight: 400; color: var(--ink); padding: 8px 10px;
+    border: 1px solid var(--line); border-radius: 8px; background: #FBFCFD; }
+  .kct-form-grid textarea { resize: vertical; }
+  .kct-lv-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .kct-lv-grid label { font-size: 11px; }
+  .kct-lvtext-grid .row { display: grid; grid-template-columns: 40px 1fr; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .kct-lvtext-grid .row span { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; color: var(--muted); text-align: center; }
+  .kct-lvtext-grid input { width: 100%; }
+  .kct-w-pair { display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px; }
+  .kct-type-hint { font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+  .kct-form-err { margin-top: 12px; color: #C62828; background: #FBE5E5; border-radius: 8px; padding: 8px 12px; font-size: 13px; }
+  .kct-form-err:empty { display: none; }
+  .kct-form-actions { display: flex; align-items: center; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+  .kct-del-confirm { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #C62828; font-weight: 600; }
+
+  .kct-th-row { display: flex; align-items: center; justify-content: space-between; gap: 14px;
+    padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .kct-th-label { display: flex; align-items: center; gap: 9px; font-weight: 600; flex-wrap: wrap; }
+  .kct-th-label small { color: var(--muted); font-weight: 400; width: 100%; margin-left: 21px; }
+  .kct-th-dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .kct-th-input { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .kct-th-input input { width: 84px; font: inherit; padding: 6px 9px; border: 1px solid var(--line); border-radius: 8px; text-align: right;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+
+  .kct-toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 10px 20px; border-radius: 999px; font-size: 13px;
+    box-shadow: 0 8px 24px rgba(23,37,59,.35); z-index: 60; }
+  .kct-toast[hidden] { display: none; }
+
+  /* ---- report ---- */
+  .kct-report { max-width: 1100px; margin: 0 auto; padding: 18px 22px 60px; background: #fff; }
+  .kct-report-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    background: #FBF6E7; border: 1px solid #EAD9A8; border-radius: 10px; padding: 10px 16px;
+    font-size: 13px; color: #6B5B23; margin-bottom: 18px; flex-wrap: wrap; }
+  .kct-report-toolbar .left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .kct-report-toolbar select { font: inherit; padding: 6px 10px; border: 1px solid #EAD9A8; border-radius: 8px; background: #fff; color: var(--ink); }
+  .kct-report-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 20px;
+    border-bottom: 3px solid var(--ink); padding-bottom: 14px; margin-bottom: 6px; flex-wrap: wrap; }
+  .kct-report-title { font-size: 20px; font-weight: 700; }
+  .kct-report-sub { font-size: 12.5px; color: var(--muted); margin-top: 2px; }
+  .kct-report-overall { text-align: right; }
+  .kct-report-overall-label { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .kct-report-overall-num { font-size: 30px; font-weight: 600; line-height: 1.15; }
+  .kct-report-overall-counts { display: flex; gap: 12px; font-size: 11.5px; justify-content: flex-end; flex-wrap: wrap; }
+  .kct-report-group { margin-top: 20px; break-inside: avoid; }
+  .kct-report-cat { font-size: 15px; font-weight: 700; margin: 0 0 8px; padding-left: 10px; border-left: 4px solid var(--ink); }
+  .kct-table { width: 100%; border-collapse: collapse; font-size: 12.8px; }
+  .kct-table th { text-align: left; font-size: 11px; letter-spacing: .04em; text-transform: uppercase;
+    color: var(--muted); border-bottom: 2px solid var(--ink); padding: 6px 8px; }
+  .kct-table td { border-bottom: 1px solid var(--line); padding: 8px; vertical-align: top; }
+  .kct-table .num { text-align: right; white-space: nowrap; }
+  .kct-table tr { break-inside: avoid; page-break-inside: avoid; }
+  .kct-td-name { font-weight: 600; }
+  .kct-td-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .kct-td-badge { font-weight: 600; }
+  .kct-td-note { font-size: 12px; }
+  .kct-report-foot { margin-top: 26px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 10px; }
+
+  /* ---- report: targets scorecard (L1–L5 grid) ---- */
+  .kct-ttable { width: 100%; border-collapse: collapse; font-size: 11.8px; table-layout: fixed; }
+  .kct-ttable th { background: var(--ink); color: #fff; font-size: 10.5px; letter-spacing: .03em;
+    padding: 6px 6px; border: 1px solid var(--ink); text-align: center; }
+  .kct-ttable td { border: 1px solid var(--line); padding: 6px 7px; vertical-align: top; word-wrap: break-word; }
+  .kct-ttable td.c { text-align: center; }
+  .kct-ttable td.namecell { font-weight: 600; }
+  .kct-ttable .sub { font-size: 10.5px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+  .kct-ttable td.hit { font-weight: 700; }
+  .kct-ttable tr { break-inside: avoid; page-break-inside: avoid; }
+  .kct-tlegend { display: flex; gap: 16px; font-size: 11px; color: var(--muted); margin: 8px 0 2px; flex-wrap: wrap; }
+  .kct-tlegend .box { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 5px; }
+
+  /* ---- report: charts ---- */
+  .kct-chart-summary { display: grid; grid-template-columns: auto 1fr; gap: 24px; align-items: center;
+    margin-top: 18px; padding: 16px 18px; border: 1px solid var(--line); border-radius: 12px; break-inside: avoid; }
+  .kct-donut-legend { display: grid; gap: 6px; font-size: 12.5px; }
+  .kct-donut-legend .row { display: flex; align-items: center; gap: 8px; }
+  .kct-donut-legend .dot { width: 11px; height: 11px; border-radius: 3px; }
+  .kct-donut-legend .n { margin-left: auto; font-weight: 600; }
+  .kct-barchart { margin-top: 8px; }
+  .kct-bar-row { display: grid; grid-template-columns: 200px 1fr 92px; gap: 10px; align-items: center; padding: 5px 0; }
+  .kct-bar-name { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kct-bar-track { position: relative; height: 15px; background: #EDF1F5; border-radius: 3px; }
+  .kct-bar-fill { position: absolute; top: 2px; bottom: 2px; left: 0; border-radius: 2px; min-width: 2px; }
+  .kct-bar-plan { position: absolute; top: -3px; bottom: -3px; border-left: 2px solid var(--ink); }
+  .kct-bar-val { font-size: 12px; text-align: right; white-space: nowrap; }
+  .kct-chart-axis { display: grid; grid-template-columns: 200px 1fr 92px; gap: 10px; font-size: 10px; color: var(--muted); }
+  .kct-chart-axis .scale { position: relative; height: 14px; }
+  .kct-chart-axis .scale span { position: absolute; transform: translateX(-50%); }
+  .kct-catchart { display: flex; align-items: flex-end; gap: 18px; margin-top: 14px;
+    padding: 0 8px; border-bottom: 2px solid var(--ink); position: relative; break-inside: avoid; }
+  .kct-catcol { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; flex: 1; height: 100%; min-width: 0; position: relative; }
+  .kct-catcol .bar { width: 60%; max-width: 64px; border-radius: 4px 4px 0 0; }
+  .kct-catcol .val { font-size: 11.5px; font-weight: 600; margin-bottom: 3px; }
+  .kct-catcol .lbl { font-size: 11px; color: var(--muted); margin-top: 5px; text-align: center;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; position: absolute; bottom: -22px; }
+  .kct-catchart-wrap { padding-bottom: 26px; }
+  .kct-cat-planline { position: absolute; left: 0; right: 0; border-top: 2px dashed #8B99AB; }
+  .kct-cat-planline span { position: absolute; right: 0; top: -15px; font-size: 9.5px; color: #8B99AB; font-family: 'IBM Plex Mono', monospace; }
+
+  /* ---- report: executive scorecard ---- */
+  .kct-x-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+  .kct-x-card { border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; break-inside: avoid; }
+  .kct-x-cat { display: flex; align-items: baseline; gap: 10px; border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 10px; }
+  .kct-x-cat .name { font-weight: 700; flex: 1; }
+  .kct-x-cat .achv { font-weight: 600; font-size: 17px; }
+  .kct-x-kpi { margin: 9px 0; }
+  .kct-x-kpi-top { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; margin-bottom: 3px; }
+  .kct-x-kpi-top .nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kct-x-kpi-top .vv { white-space: nowrap; font-weight: 600; }
+  .kct-x-track { position: relative; height: 10px; background: #EDF1F5; border-radius: 3px; }
+  .kct-x-fill { position: absolute; top: 2px; bottom: 2px; left: 0; border-radius: 2px; min-width: 2px; }
+  .kct-x-plan { position: absolute; top: -2px; bottom: -2px; border-left: 2px solid var(--ink); }
+  .kct-watch { margin-top: 18px; border: 1px solid #F3D3A0; background: #FDF8EE; border-radius: 12px; padding: 14px 16px; break-inside: avoid; }
+  .kct-watch h3 { margin: 0 0 8px; font-size: 14px; color: #8A5A00; }
+  .kct-watch-row { display: flex; gap: 12px; align-items: baseline; padding: 5px 0; border-bottom: 1px dashed #EAD9A8; font-size: 12.8px; flex-wrap: wrap; }
+  .kct-watch-row:last-child { border-bottom: 0; }
+  .kct-watch-row .nm { font-weight: 600; flex: 1; min-width: 160px; }
+
+  /* ---- print ---- */
+  @media print {
+    .no-print { display: none !important; }
+    body { background: #fff; font-size: 12px; }
+    .kct-report { max-width: none; padding: 0; }
+    .kct-report-group { break-inside: auto; }
+    thead { display: table-header-group; }
+    .kct-table tr, .kct-ttable tr, .kct-report-cat, .kct-chart-summary, .kct-x-card, .kct-watch, .kct-catchart-wrap, .kct-bar-row { break-inside: avoid; page-break-inside: avoid; }
+    .kct-status { border: 1px solid currentColor; }
+    .kct-ttable th { background: #fff !important; color: var(--ink) !important; border-color: var(--ink); }
+    .kct-x-grid { grid-template-columns: 1fr 1fr; }
+    @page { margin: 12mm 10mm; }
+  }
+
+  /* ---- responsive ---- */
+  @media (max-width: 760px) {
+    .kct-hero { grid-template-columns: 1fr; }
+    .kct-hero-number { font-size: 42px; }
+    .kct-form-grid { grid-template-columns: 1fr; }
+    .kct-figures { gap: 16px; }
+    .kct-report-head { flex-direction: column; }
+    .kct-report-overall { text-align: left; }
+    .kct-report-overall-counts { justify-content: flex-start; }
+    .kct-bar-row, .kct-chart-axis { grid-template-columns: 110px 1fr 78px; }
+    .kct-x-grid { grid-template-columns: 1fr; }
+    .kct-chart-summary { grid-template-columns: 1fr; justify-items: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== Header ===== -->
+<header class="kct-header no-print">
+  <div class="kct-header-left">
+    <div class="kct-logo">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 2v3M7 5h10l-2 5H9L7 5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M10 10l-1.5 12M14 10l1.5 12M8 16h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div>
+      <div class="kct-title">KPI CONTROL TOWER</div>
+      <div class="kct-subtitle">ติดตาม Business Plan Goal · Quantitative + Milestone L1–L5</div>
+    </div>
+  </div>
+  <div class="kct-header-actions">
+    <span class="kct-save" id="saveIndicator">พร้อมใช้งาน</span>
+    <div class="kct-mode-toggle" role="tablist" aria-label="โหมดการแสดงผล">
+      <button id="btnModeDash" role="tab" class="on">แดชบอร์ด</button>
+      <button id="btnModeReport" role="tab">ออกรายงาน</button>
+    </div>
+    <button class="kct-btn ghost" id="btnSettings">เกณฑ์สถานะ</button>
+    <button class="kct-btn ghost" id="btnExport">Export JSON</button>
+    <button class="kct-btn ghost" id="btnImport">Import JSON</button>
+    <input type="file" id="importFile" accept="application/json,.json" style="display:none" />
+    <button class="kct-btn primary" id="btnAdd">+ เพิ่ม KPI</button>
+  </div>
+</header>
+
+<!-- ===== Dashboard ===== -->
+<main class="kct-main" id="viewDashboard">
+  <section class="kct-hero" id="hero"></section>
+  <section class="kct-controls">
+    <div class="kct-tabs" id="tabs" role="tablist" aria-label="หมวดหมู่"></div>
+    <label class="kct-sort">เรียงตาม
+      <select id="sortSelect">
+        <option value="worst">หลุดแผนมากสุดก่อน</option>
+        <option value="priority">ลำดับความสำคัญ (Priority)</option>
+        <option value="category">หมวดหมู่ · ลำดับที่</option>
+      </select>
+    </label>
+  </section>
+  <section class="kct-list" id="kpiList"></section>
+</main>
+
+<!-- ===== Report ===== -->
+<main class="kct-report" id="viewReport" hidden></main>
+
+<!-- ===== Modal & toast ===== -->
+<div class="kct-overlay no-print" id="modalOverlay" hidden>
+  <div class="kct-modal" role="dialog" aria-modal="true" id="modalBox"></div>
+</div>
+<div class="kct-toast no-print" id="toast" hidden></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   KPI CONTROL TOWER v3 — standalone single-file app (vanilla JS)
+   KPI 2 ประเภท:
+   - numeric  : Plan/Actual ตัวเลข + Target L1–L5 ตัวเลข (optional)
+   - level    : Milestone — Target L1–L5 เป็นข้อความ เลือกระดับที่ทำได้
+   รายงาน 4 รูปแบบ: ตาราง / ตาราง Target L1–L5 / กราฟ / Executive Scorecard
+   ============================================================ */
+
+const STORAGE_KEY = "kpi-control-tower:v1";
+const DEFAULT_THRESHOLDS = { excellent: 120, onplan: 100, atrisk: 85 };
+const LEVEL_STEP = 10; // % ต่อ 1 ระดับ สำหรับแปลงระดับเป็น Achievement
+
+const STATUS_META = {
+  excellent: { label: "ยอดเยี่ยม",     color: "#146C94", bg: "#E3F0F7" },
+  onplan:    { label: "ตามแผน",       color: "#2E7D32", bg: "#E7F2E7" },
+  atrisk:    { label: "เสี่ยงหลุดแผน", color: "#C77700", bg: "#FBF0DD" },
+  offplan:   { label: "หลุดแผน",      color: "#C62828", bg: "#FBE5E5" },
+};
+const NA_META = { label: "ไม่มีข้อมูล", color: "#5B6B7F", bg: "#EEF1F4" };
+const STATUS_ORDER = ["excellent", "onplan", "atrisk", "offplan"];
+const PRIORITIES = ["สูง", "กลาง", "ต่ำ"];
+const PRIORITY_ORDER = { "สูง": 0, "กลาง": 1, "ต่ำ": 2 };
+const PRIORITY_CLASS = { "สูง": "p-high", "กลาง": "p-mid", "ต่ำ": "p-low" };
+const WEIGHT_UNITS = ["%", "pts", "คะแนน", "x"];
+const LV_KEYS = ["l1", "l2", "l3", "l4", "l5"];
+
+const uid = () =>
+  (window.crypto && crypto.randomUUID)
+    ? crypto.randomUUID()
+    : "id-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8);
+
+const SEED_KPIS = () => [
+  { id: uid(), no: 1, type: "numeric", category: "การเงิน", name: "Overall Gross TVPI", unit: "x",
+    plan: 0.87, actual: 0.88, direction: "higher", period: "FY2026",
+    owner: "ทีมการลงทุน", weight: 10, weightUnit: "%", priority: "สูง",
+    targets: { l1: 0.83, l2: 0.85, l3: 0.87, l4: 0.89, l5: 0.91 }, targetsText: {},
+    actualLevel: null, actualText: "", planLevel: 3,
+    note: "L5 = สูงกว่า L4", updatedAt: new Date().toISOString() },
+  { id: uid(), no: 2, type: "level", category: "การลงทุน", name: "New investment", unit: "",
+    plan: null, actual: null, direction: "higher", period: "FY2026",
+    owner: "ทีมการลงทุน", weight: 10, weightUnit: "%", priority: "สูง",
+    targets: {},
+    targetsText: {
+      l1: "เสนอดีลเข้าคณะกรรมการอย่างน้อย 2 ดีล",
+      l2: "เสนอดีลเข้าคณะกรรมการอย่างน้อย 3 ดีล",
+      l3: "ลงทุนใหม่/follow-on มากกว่า 2 ดีล มูลค่ารวมเกินเป้า",
+      l4: "ลงทุนใหม่/follow-on มากกว่า 3 ดีล มูลค่ารวมเกินเป้า",
+      l5: "ลงทุนใหม่/follow-on มากกว่า 4 ดีล มูลค่ารวมเกินเป้า",
+    },
+    actualLevel: 3, actualText: "ปิดดีลใหม่แล้ว 2 ดีล + follow-on 1 ดีล",
+    planLevel: 3,
+    note: "", updatedAt: new Date().toISOString() },
+  { id: uid(), no: 3, type: "level", category: "การลงทุน", name: "Portfolio management", unit: "",
+    plan: null, actual: null, direction: "higher", period: "FY2026",
+    owner: "ทีมการลงทุน", weight: 10, weightUnit: "%", priority: "กลาง",
+    targets: {},
+    targetsText: {
+      l1: "จัดทำรายงานข้อมูลพอร์ตโฟลิโอครบถ้วน",
+      l2: "กำหนดแนวทาง exit และ follow-on ของบริษัทในพอร์ต",
+      l3: "คณะกรรมการอนุมัติแนวทาง exit และ follow-on",
+      l4: "เสนอ exit pathway ที่ผ่านการทดสอบตลาดต่อคณะกรรมการ",
+      l5: "คณะกรรมการอนุมัติการ execute exit 1 รายการ",
+    },
+    actualLevel: 2, actualText: "อยู่ระหว่างเสนอแนวทางเข้าบอร์ด Q3",
+    planLevel: 3,
+    note: "", updatedAt: new Date().toISOString() },
+  { id: uid(), no: 4, type: "level", category: "Key enablers", name: "Non-compliance", unit: "",
+    plan: null, actual: null, direction: "higher", period: "FY2026",
+    owner: "ฝ่ายกำกับดูแล", weight: 5, weightUnit: "%", priority: "สูง",
+    targets: {},
+    targetsText: { l1: "พบ non-compliance 1 กรณี", l2: "", l3: "", l4: "", l5: "ไม่มี non-compliance ตลอดปี" },
+    actualLevel: 5, actualText: "ยังไม่พบ non-compliance",
+    planLevel: 3,
+    note: "ระบุเฉพาะ L1 กับ L5 ตามเกณฑ์จริง (ระดับอื่น NA)", updatedAt: new Date().toISOString() },
+  { id: uid(), no: 5, type: "numeric", category: "ต้นทุน", name: "ค่าใช้จ่ายดำเนินงาน (OPEX)", unit: "ล้านบาท",
+    plan: 120, actual: 131, direction: "lower", period: "FY2026",
+    owner: "ฝ่ายการเงิน", weight: 10, weightUnit: "%", priority: "กลาง",
+    targets: { l1: 140, l2: 130, l3: 120, l4: 110, l5: 100 }, targetsText: {},
+    actualLevel: null, actualText: "", planLevel: 3,
+    note: "", updatedAt: new Date().toISOString() },
+];
+
+/* ---------------- storage adapter ---------------- */
+const store = (() => {
+  if (window.storage && typeof window.storage.get === "function") {
+    return {
+      persistent: true,
+      async get() { try { const r = await window.storage.get(STORAGE_KEY); return r && r.value != null ? r.value : null; } catch (e) { return null; } },
+      async set(v) { try { const r = await window.storage.set(STORAGE_KEY, v); return !!r; } catch (e) { return false; } },
+    };
+  }
+  try {
+    const t = "__kct_test__";
+    window.localStorage.setItem(t, "1");
+    window.localStorage.removeItem(t);
+    return {
+      persistent: true,
+      async get() { try { return window.localStorage.getItem(STORAGE_KEY); } catch (e) { return null; } },
+      async set(v) { try { window.localStorage.setItem(STORAGE_KEY, v); return true; } catch (e) { return false; } },
+    };
+  } catch (e) {
+    let mem = null;
+    return {
+      persistent: false,
+      async get() { return mem; },
+      async set(v) { mem = v; return true; },
+    };
+  }
+})();
+
+/* ---------------- state ---------------- */
+const state = {
+  kpis: [],
+  thresholds: { excellent: 120, onplan: 100, atrisk: 85 },
+  mode: "dashboard",
+  activeCat: "ทั้งหมด",
+  sortBy: "worst",
+  reportStyle: "table", // table | targets | charts | scorecard
+};
+let saveTimer = null;
+let toastTimer = null;
+
+/* ---------------- helpers ---------------- */
+function numOrNull(v) {
+  if (v === "" || v == null) return null;
+  const n = Number(v);
+  return isFinite(n) ? n : null;
+}
+function esc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+function fmtNum(n, digits) {
+  if (n == null || !isFinite(n)) return "—";
+  const abs = Math.abs(n);
+  const d = abs >= 1000 ? 0 : abs >= 100 ? 1 : (digits == null ? 2 : digits);
+  return Number(n).toLocaleString("th-TH", { maximumFractionDigits: d, minimumFractionDigits: 0 });
+}
+function fmtPct(n, digits) {
+  if (n == null || !isFinite(n)) return "—";
+  return Number(n).toLocaleString("th-TH", { maximumFractionDigits: digits == null ? 1 : digits }) + "%";
+}
+function fmtDateTime(iso) {
+  try {
+    return new Date(iso).toLocaleString("th-TH", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  } catch (e) { return "—"; }
+}
+function dispName(k) { return k.name && k.name.trim() ? k.name : "(ไม่ระบุชื่อ)"; }
+function dispCat(k) { return k.category && k.category.trim() ? k.category : "ไม่ระบุหมวด"; }
+function weightText(k) {
+  const w = numOrNull(k.weight);
+  if (w == null) return null;
+  return fmtNum(w, 1) + (k.weightUnit ? " " + k.weightUnit : "");
+}
+function levelLabel(lv) { return lv === 0 ? "ต่ำกว่า L1" : "L" + lv; }
+
+/* ---------------- calculations ---------------- */
+function achievementOf(k) {
+  if (k.type === "level") {
+    if (k.actualLevel == null) return null;
+    const pl = k.planLevel || 3;
+    return 100 + (k.actualLevel - pl) * LEVEL_STEP;
+  }
+  const plan = numOrNull(k.plan), actual = numOrNull(k.actual);
+  if (plan == null || actual == null) return null;
+  if (k.direction === "lower") {
+    if (actual <= 0) return plan <= 0 ? 100 : 999;
+    return (plan / actual) * 100;
+  }
+  if (plan <= 0) return actual > 0 ? 999 : 100;
+  return (actual / plan) * 100;
+}
+function statusOf(ach, t) {
+  if (ach == null) return null;
+  if (ach >= t.excellent) return "excellent";
+  if (ach >= t.onplan) return "onplan";
+  if (ach >= t.atrisk) return "atrisk";
+  return "offplan";
+}
+/* gap (เฉพาะ numeric): บวก = ดีกว่าแผน */
+function gapOf(k) {
+  if (k.type === "level") return null;
+  const plan = numOrNull(k.plan), actual = numOrNull(k.actual);
+  if (plan == null || actual == null) return null;
+  const raw = k.direction === "lower" ? plan - actual : actual - plan;
+  const pct = plan !== 0 ? (raw / Math.abs(plan)) * 100 : null;
+  return { raw: raw, pct: pct };
+}
+function definedLevels(k) {
+  const out = [];
+  LV_KEYS.forEach((key, i) => {
+    const v = numOrNull(k.targets && k.targets[key]);
+    if (v != null) out.push({ lv: i + 1, val: v });
+  });
+  return out;
+}
+/* คะแนนระดับ 0–5:
+   - level KPI: ระดับที่เลือกโดยตรง
+   - numeric KPI ที่มี Target L ตัวเลข: interpolate เชิงเส้น */
+function levelScoreOf(k) {
+  if (k.type === "level") {
+    if (k.actualLevel == null) return null;
+    return { score: k.actualLevel, metLv: k.actualLevel, points: [{ lv: 1 }], isLevelType: true };
+  }
+  const actual = numOrNull(k.actual);
+  if (actual == null) return null;
+  const pts = definedLevels(k);
+  if (pts.length === 0) return null;
+  const dirLower = k.direction === "lower";
+  const meets = (val) => dirLower ? actual <= val : actual >= val;
+
+  let metLv = 0;
+  pts.forEach((p) => { if (meets(p.val)) metLv = Math.max(metLv, p.lv); });
+
+  let score;
+  if (pts.length === 1) {
+    score = meets(pts[0].val) ? pts[0].lv : Math.max(0, pts[0].lv - 1);
+  } else {
+    const interp = (a, b, x) => {
+      if (b.val === a.val) return Math.max(a.lv, b.lv);
+      return a.lv + ((x - a.val) / (b.val - a.val)) * (b.lv - a.lv);
+    };
+    score = null;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1];
+      const lo = Math.min(a.val, b.val), hi = Math.max(a.val, b.val);
+      if (actual >= lo && actual <= hi) { score = interp(a, b, actual); break; }
+    }
+    if (score == null) {
+      const sFirst = interp(pts[0], pts[1], actual);
+      const sLast = interp(pts[pts.length - 2], pts[pts.length - 1], actual);
+      score = sLast > pts[pts.length - 1].lv ? sLast : sFirst;
+    }
+  }
+  score = Math.max(0, Math.min(5, score));
+  return { score: score, metLv: metLv, points: pts, isLevelType: false };
+}
+function overallAchievement(kpis, t) {
+  let wsum = 0, asum = 0;
+  const counts = { excellent: 0, onplan: 0, atrisk: 0, offplan: 0 };
+  let noData = 0;
+  kpis.forEach((k) => {
+    const ach = achievementOf(k);
+    if (ach == null) { noData++; return; }
+    const w0 = numOrNull(k.weight);
+    const w = w0 != null && w0 > 0 ? w0 : 1;
+    wsum += w; asum += ach * w;
+    const s = statusOf(ach, t);
+    if (s) counts[s] += 1;
+  });
+  return { overall: wsum > 0 ? asum / wsum : null, counts: counts, noData: noData };
+}
+function overallLevelScore(kpis) {
+  let wsum = 0, ssum = 0, n = 0;
+  kpis.forEach((k) => {
+    const lv = levelScoreOf(k);
+    if (!lv) return;
+    const w0 = numOrNull(k.weight);
+    const w = w0 != null && w0 > 0 ? w0 : 1;
+    wsum += w; ssum += lv.score * w; n++;
+  });
+  return wsum > 0 ? { score: ssum / wsum, n: n } : null;
+}
+
+/* ---------------- persistence ---------------- */
+function normalizeKpi(k) {
+  const targets = {};
+  const targetsText = {};
+  LV_KEYS.forEach((key) => {
+    targets[key] = numOrNull(k.targets && k.targets[key]);
+    targetsText[key] = String((k.targetsText && k.targetsText[key]) || "");
+  });
+  let al = k.actualLevel;
+  al = (al === 0 || (typeof al === "number" && al >= 1 && al <= 5)) ? Math.round(al) : null;
+  let pl = numOrNull(k.planLevel);
+  pl = pl != null && pl >= 1 && pl <= 5 ? Math.round(pl) : 3;
+  return {
+    id: k.id || uid(),
+    no: numOrNull(k.no),
+    type: k.type === "level" ? "level" : "numeric",
+    category: String(k.category || ""),
+    name: String(k.name || ""),
+    unit: String(k.unit || ""),
+    plan: numOrNull(k.plan),
+    actual: numOrNull(k.actual),
+    direction: k.direction === "lower" ? "lower" : "higher",
+    period: String(k.period || ""),
+    owner: String(k.owner || ""),
+    weight: numOrNull(k.weight),
+    weightUnit: String(k.weightUnit || ""),
+    priority: PRIORITIES.indexOf(k.priority) !== -1 ? k.priority : "กลาง",
+    targets: targets,
+    targetsText: targetsText,
+    actualLevel: al,
+    actualText: String(k.actualText || ""),
+    planLevel: pl,
+    note: String(k.note || ""),
+    updatedAt: k.updatedAt || new Date().toISOString(),
+  };
+}
+async function loadState() {
+  const raw = await store.get();
+  if (raw) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.kpis)) {
+        state.kpis = parsed.kpis.map(normalizeKpi);
+        state.thresholds = Object.assign({}, DEFAULT_THRESHOLDS, parsed.thresholds || {});
+        return;
+      }
+    } catch (e) { /* ข้อมูลเสีย → ใช้ seed */ }
+  }
+  state.kpis = SEED_KPIS().map(normalizeKpi);
+}
+function scheduleSave() {
+  const el = document.getElementById("saveIndicator");
+  el.textContent = "กำลังบันทึก…"; el.classList.remove("error");
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    const ok = await store.set(JSON.stringify({ kpis: state.kpis, thresholds: state.thresholds }));
+    if (ok) {
+      el.textContent = store.persistent ? "บันทึกแล้ว" : "บันทึกชั่วคราว (เบราว์เซอร์นี้ปิด localStorage)";
+      el.classList.toggle("error", !store.persistent);
+    } else {
+      el.textContent = "บันทึกไม่สำเร็จ"; el.classList.add("error");
+    }
+  }, 500);
+}
+function commit() { scheduleSave(); render(); }
+
+function notify(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.hidden = false;
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 2600);
+}
+
+/* ---------------- rendering: dashboard ---------------- */
+function planTickHTML(leftPct, flagText) {
+  return '<div class="kct-plan-tick" style="left:' + leftPct + '%">' +
+    '<span class="kct-plan-flag">' + esc(flagText) + "</span></div>";
+}
+
+function renderHero() {
+  const t = state.thresholds;
+  const res = overallAchievement(state.kpis, t);
+  const overall = res.overall, counts = res.counts;
+  const st = statusOf(overall, t);
+  const color = st ? STATUS_META[st].color : "var(--ink)";
+  const olv = overallLevelScore(state.kpis);
+
+  let barHTML = "";
+  if (overall != null) {
+    const max = Math.max(140, t.excellent + 20, Math.min(overall * 1.1, 300));
+    const pct = (v) => Math.min(100, Math.max(0, (v / max) * 100));
+    barHTML =
+      '<div class="kct-obar" aria-hidden="true"><div class="kct-obar-track">' +
+      '<div class="kct-obar-fill" style="width:' + pct(overall) + "%;background:" + color + '"></div>' +
+      planTickHTML(pct(100), "PLAN 100%") +
+      '<div class="kct-obar-mark" style="left:' + pct(t.atrisk) + '%" title="เสี่ยง ' + t.atrisk + '%"></div>' +
+      '<div class="kct-obar-mark" style="left:' + pct(t.excellent) + '%" title="ยอดเยี่ยม ' + t.excellent + '%"></div>' +
+      "</div></div>";
+  }
+
+  const strips = STATUS_ORDER.map((s) => {
+    const m = STATUS_META[s];
+    const th = s === "excellent" ? "≥" + t.excellent + "%"
+      : s === "onplan" ? "≥" + t.onplan + "%"
+      : s === "atrisk" ? "≥" + t.atrisk + "%"
+      : "<" + t.atrisk + "%";
+    return '<div class="kct-strip" style="border-left-color:' + m.color + ";background:" + m.bg + '">' +
+      '<span class="kct-strip-count mono" style="color:' + m.color + '">' + counts[s] + "</span>" +
+      '<span class="kct-strip-label">' + m.label + "</span>" +
+      '<span class="kct-strip-th mono">' + esc(th) + "</span></div>";
+  }).join("");
+
+  const noDataNote = res.noData > 0 ? " · ยังไม่มีข้อมูลครบ " + res.noData + " KPI" : "";
+  const lvLine = olv
+    ? '<div class="kct-hero-lv">คะแนนระดับถ่วงน้ำหนัก: <b class="mono">' + olv.score.toFixed(2) + " / 5</b> (จาก " + olv.n + " KPI ที่มี Target Level)</div>"
+    : '<div class="kct-hero-lv"></div>';
+
+  document.getElementById("hero").innerHTML =
+    '<div class="kct-hero-left">' +
+      '<div class="kct-eyebrow">Overall Achievement · ถ่วงน้ำหนักด้วย Weight</div>' +
+      '<div class="kct-hero-number mono" style="color:' + color + '">' + fmtPct(overall, 1) + "</div>" +
+      '<div class="kct-hero-caption">' +
+        (st ? "สถานะภาพรวม: " + STATUS_META[st].label : "ยังไม่มีข้อมูล KPI ที่คำนวณได้") +
+        " · " + state.kpis.length + " KPI" + noDataNote + "</div>" +
+      lvLine +
+      barHTML +
+    "</div>" +
+    '<div class="kct-hero-strips">' + strips + "</div>";
+}
+
+function renderTabs() {
+  const cats = ["ทั้งหมด"].concat(Array.from(new Set(state.kpis.map((k) => dispCat(k)))));
+  if (cats.indexOf(state.activeCat) === -1) state.activeCat = "ทั้งหมด";
+  document.getElementById("tabs").innerHTML = cats.map((c) => {
+    const n = c === "ทั้งหมด" ? state.kpis.length : state.kpis.filter((k) => dispCat(k) === c).length;
+    return '<button class="kct-tab' + (state.activeCat === c ? " on" : "") + '" role="tab" ' +
+      'aria-selected="' + (state.activeCat === c) + '" data-cat="' + esc(c) + '">' +
+      esc(c) + ' <span class="kct-tab-count mono">' + n + "</span></button>";
+  }).join("");
+}
+
+function byNoThenName(a, b) {
+  const na = numOrNull(a.no), nb = numOrNull(b.no);
+  if (na != null && nb != null && na !== nb) return na - nb;
+  if (na != null && nb == null) return -1;
+  if (na == null && nb != null) return 1;
+  return dispName(a).localeCompare(dispName(b), "th");
+}
+function sortedVisible() {
+  let list = state.activeCat === "ทั้งหมด"
+    ? state.kpis.slice()
+    : state.kpis.filter((k) => dispCat(k) === state.activeCat);
+  const ach = (k) => { const a = achievementOf(k); return a == null ? Infinity : a; };
+  if (state.sortBy === "worst") list.sort((a, b) => ach(a) - ach(b));
+  else if (state.sortBy === "priority")
+    list.sort((a, b) =>
+      ((PRIORITY_ORDER[a.priority] != null ? PRIORITY_ORDER[a.priority] : 9) -
+       (PRIORITY_ORDER[b.priority] != null ? PRIORITY_ORDER[b.priority] : 9)) || (ach(a) - ach(b)));
+  else
+    list.sort((a, b) => dispCat(a).localeCompare(dispCat(b), "th") || byNoThenName(a, b));
+  return list;
+}
+
+/* ---- numeric KPI: glidepath bar ---- */
+function glideHTML(k, meta) {
+  const plan = numOrNull(k.plan), actual = numOrNull(k.actual);
+  const lvs = definedLevels(k);
+  const nums = [];
+  if (plan != null) nums.push(Math.abs(plan));
+  if (actual != null) nums.push(Math.abs(actual));
+  lvs.forEach((p) => nums.push(Math.abs(p.val)));
+  if (nums.length === 0) return "";
+  const biggest = Math.max.apply(null, nums.concat([1]));
+  const max = biggest * 1.18;
+  const pct = (v) => Math.min(100, Math.max(0, (v / max) * 100));
+  const goalText = k.direction === "lower" ? "เป้า: ต่ำกว่าเส้น PLAN" : "เป้า: ถึง/เกินเส้น PLAN";
+
+  let inner = "";
+  if (actual != null) {
+    inner += '<div class="kct-glide-fill" style="width:' + pct(actual) + "%;background:" + meta.color + '"></div>';
+  }
+  lvs.forEach((p) => {
+    inner += '<div class="kct-lv-tick" style="left:' + pct(p.val) + '%">' +
+      '<span class="kct-lv-flag">L' + p.lv + "</span></div>";
+  });
+  if (plan != null) inner += planTickHTML(pct(plan), "PLAN");
+
+  return '<div class="kct-glide' + (lvs.length ? " has-lv" : "") + '"><div class="kct-glide-track">' + inner +
+    '</div><div class="kct-glide-caption">' + goalText +
+    (lvs.length ? " · ขีดประ = Target L1–L5" : "") + "</div></div>";
+}
+
+/* ---- milestone KPI: level ladder ---- */
+function ladderHTML(k, meta) {
+  const achieved = k.actualLevel; // null | 0..5
+  const pl = k.planLevel || 3;
+  let segs = "";
+  for (let i = 1; i <= 5; i++) {
+    const filled = achieved != null && achieved >= i;
+    const hasText = k.targetsText && k.targetsText["l" + i] && k.targetsText["l" + i].trim();
+    segs += '<div class="seg' + (filled ? " filled" : "") + '" style="' +
+      (filled ? "background:" + meta.color + ";" : "") + '" title="' +
+      esc(hasText ? "L" + i + ": " + k.targetsText["l" + i] : "L" + i + ": NA") + '">' +
+      (i === pl ? '<span class="planflag">PLAN</span>' : "") +
+      "L" + i + (hasText ? "" : " · NA") +
+    "</div>";
+  }
+  let caption = "ระดับที่ทำได้: " +
+    (achieved == null ? "ยังไม่ประเมิน" : "<b>" + levelLabel(achieved) + "</b>") +
+    " · Plan = L" + pl + " · ชี้ที่แท่งเพื่อดูเป้าแต่ละระดับ";
+  let next = "";
+  if (achieved != null && achieved < 5) {
+    for (let n = achieved + 1; n <= 5; n++) {
+      const txt = k.targetsText && k.targetsText["l" + n];
+      if (txt && txt.trim()) {
+        next = '<div class="kct-next-target"><b>เป้าถัดไป L' + n + ":</b> " + esc(txt) + "</div>";
+        break;
+      }
+    }
+  }
+  return '<div class="kct-ladder-wrap"><div class="kct-ladder">' + segs + "</div>" +
+    '<div class="kct-ladder-caption">' + caption + "</div>" + next + "</div>";
+}
+
+function kpiCardHTML(k) {
+  const t = state.thresholds;
+  const ach = achievementOf(k);
+  const st = statusOf(ach, t);
+  const meta = st ? STATUS_META[st] : NA_META;
+  const gap = gapOf(k);
+  const lvScore = levelScoreOf(k);
+  const isLevel = k.type === "level";
+
+  /* gap badge (numeric) */
+  let gapHTML = "";
+  if (gap) {
+    const good = gap.raw >= 0;
+    const arrow = k.direction === "lower" ? (good ? "▼" : "▲") : (good ? "▲" : "▼");
+    const gcolor = good ? "#2E7D32" : "#C62828";
+    gapHTML =
+      '<div class="kct-fig"><span class="kct-fig-label">Gap เทียบแผน</span>' +
+      '<span class="kct-fig-value mono" style="color:' + gcolor + '">' +
+      arrow + " " + (good ? "+" : "−") + fmtNum(Math.abs(gap.raw)) + " " + esc(k.unit) +
+      (gap.pct != null ? ' <span class="kct-gap-pct">(' + (good ? "+" : "−") + fmtNum(Math.abs(gap.pct), 1) + "%)</span>" : "") +
+      "</span></div>";
+  }
+  /* level delta badge (milestone) */
+  if (isLevel && k.actualLevel != null) {
+    const d = k.actualLevel - (k.planLevel || 3);
+    const good = d >= 0;
+    gapHTML =
+      '<div class="kct-fig"><span class="kct-fig-label">เทียบ Plan Level</span>' +
+      '<span class="kct-fig-value mono" style="color:' + (good ? "#2E7D32" : "#C62828") + '">' +
+      (good ? "▲ +" : "▼ −") + Math.abs(d) + " ระดับ</span></div>";
+  }
+
+  /* level score badge (numeric ที่มี L targets) */
+  let lvHTML = "";
+  if (!isLevel && lvScore) {
+    lvHTML =
+      '<div class="kct-fig"><span class="kct-fig-label">Target Level</span>' +
+      '<span class="kct-fig-value mono strong">' +
+      (lvScore.metLv > 0 ? "L" + lvScore.metLv : "ต่ำกว่า L" + lvScore.points[0].lv) +
+      ' <span class="kct-gap-pct">(' + lvScore.score.toFixed(2) + "/5)</span></span></div>";
+  }
+
+  const wt = weightText(k);
+  const weightChip = wt ? '<span class="kct-chip mono">w ' + esc(wt) + "</span>" : "";
+  const noChip = numOrNull(k.no) != null ? '<span class="kct-chip no mono">#' + fmtNum(k.no, 0) + "</span>" : "";
+  const typeChip = isLevel ? '<span class="kct-chip">Milestone</span>' : "";
+
+  /* figures: plan / actual */
+  let planFig, actualFig;
+  if (isLevel) {
+    planFig = '<div class="kct-fig"><span class="kct-fig-label">Plan Level</span>' +
+      '<span class="kct-fig-value mono">L' + (k.planLevel || 3) + "</span></div>";
+    const btnText = k.actualLevel == null ? "— เลือกระดับ" : levelLabel(k.actualLevel);
+    actualFig = '<div class="kct-fig"><span class="kct-fig-label">ระดับที่ทำได้ · คลิกเพื่อแก้เร็ว</span>' +
+      '<button class="kct-fig-value mono strong kct-quick-btn" data-action="quick-level" title="คลิกเพื่อเลือกระดับที่ทำได้">' +
+      esc(btnText) + ' <span class="kct-pencil">✎</span></button></div>';
+  } else {
+    planFig = '<div class="kct-fig"><span class="kct-fig-label">Plan</span>' +
+      '<span class="kct-fig-value mono">' + fmtNum(k.plan) + (numOrNull(k.plan) != null ? " " + esc(k.unit) : "") + "</span></div>";
+    const actualBtnText = numOrNull(k.actual) != null ? fmtNum(k.actual) + " " + esc(k.unit) : "— ระบุค่า";
+    actualFig = '<div class="kct-fig"><span class="kct-fig-label">Actual · คลิกเพื่อแก้เร็ว</span>' +
+      '<button class="kct-fig-value mono strong kct-quick-btn" data-action="quick" title="คลิกเพื่อแก้ค่า Actual แบบเร็ว">' +
+      actualBtnText + ' <span class="kct-pencil">✎</span></button></div>';
+  }
+
+  const actualTextLine = isLevel && k.actualText
+    ? '<div class="kct-note">ผลจริง: ' + esc(k.actualText) + (k.note ? " — " + esc(k.note) : "") + "</div>"
+    : (k.note ? '<div class="kct-note">' + esc(k.note) + "</div>" : "");
+
+  return '<article class="kct-card" style="border-left:4px solid ' + meta.color + '" data-id="' + esc(k.id) + '">' +
+    '<div class="kct-card-top">' +
+      '<div class="kct-card-id">' + noChip +
+        '<span class="kct-chip">' + esc(dispCat(k)) + "</span>" + typeChip +
+        '<span class="kct-chip ' + (PRIORITY_CLASS[k.priority] || "") + '">' + esc(k.priority) + "</span>" +
+        weightChip +
+      "</div>" +
+      '<div class="kct-card-name">' + esc(dispName(k)) + "</div>" +
+      '<div class="kct-card-side">' +
+        '<span class="kct-status" style="color:' + meta.color + ";background:" + meta.bg + '">' + meta.label + "</span>" +
+        '<button class="kct-btn tiny ghost" data-action="edit">แก้ไข</button>' +
+      "</div>" +
+    "</div>" +
+    (isLevel ? ladderHTML(k, meta) : glideHTML(k, meta)) +
+    '<div class="kct-card-bottom">' +
+      '<div class="kct-figures">' +
+        planFig + actualFig +
+        '<div class="kct-fig"><span class="kct-fig-label">Achievement</span>' +
+          '<span class="kct-fig-value mono strong" style="color:' + meta.color + '">' + fmtPct(ach) + "</span></div>" +
+        gapHTML + lvHTML +
+      "</div>" +
+      '<div class="kct-card-meta">' +
+        (k.owner ? "<span>" + esc(k.owner) + "</span>" : "") +
+        (k.period ? "<span>" + esc(k.period) + "</span>" : "") +
+        "<span>อัปเดต " + esc(fmtDateTime(k.updatedAt)) + "</span>" +
+      "</div>" +
+    "</div>" +
+    actualTextLine +
+  "</article>";
+}
+
+function renderList() {
+  const list = sortedVisible();
+  document.getElementById("kpiList").innerHTML = list.length
+    ? list.map(kpiCardHTML).join("")
+    : '<div class="kct-empty">ยังไม่มี KPI ในหมวดนี้ — กด "+ เพิ่ม KPI" เพื่อเริ่มติดตามเป้าหมายแรก</div>';
+}
+
+/* ============================================================
+   rendering: report (4 styles)
+   ============================================================ */
+function reportGroups() {
+  const groups = new Map();
+  state.kpis.slice()
+    .sort((a, b) => dispCat(a).localeCompare(dispCat(b), "th") || byNoThenName(a, b))
+    .forEach((k) => {
+      const c = dispCat(k);
+      if (!groups.has(c)) groups.set(c, []);
+      groups.get(c).push(k);
+    });
+  return groups;
+}
+
+function reportHeadHTML(overall, counts, st) {
+  const color = st ? STATUS_META[st].color : "var(--ink)";
+  const today = new Date().toLocaleDateString("th-TH", { day: "numeric", month: "long", year: "numeric" });
+  const olv = overallLevelScore(state.kpis);
+  const countsHTML = STATUS_ORDER.map((s) =>
+    '<span style="color:' + STATUS_META[s].color + '">' + STATUS_META[s].label +
+    ' <b class="mono">' + counts[s] + "</b></span>").join("");
+  return '<header class="kct-report-head"><div>' +
+      '<div class="kct-report-title">รายงานติดตาม KPI — Business Plan Goal</div>' +
+      '<div class="kct-report-sub">KPI Control Tower · ข้อมูล ณ วันที่ ' + esc(today) +
+        (olv ? ' · คะแนนระดับถ่วงน้ำหนัก <b class="mono">' + olv.score.toFixed(2) + "/5</b>" : "") + "</div>" +
+    "</div>" +
+    '<div class="kct-report-overall">' +
+      '<div class="kct-report-overall-label">Overall Achievement (ถ่วงน้ำหนัก)</div>' +
+      '<div class="kct-report-overall-num mono" style="color:' + color + '">' + fmtPct(overall, 1) + "</div>" +
+      '<div class="kct-report-overall-counts">' + countsHTML + "</div>" +
+    "</div></header>";
+}
+
+function reportFootHTML() {
+  const t = state.thresholds;
+  return '<footer class="kct-report-foot">เกณฑ์สถานะ: ยอดเยี่ยม ≥ ' + t.excellent +
+    "% · ตามแผน ≥ " + t.onplan + "% · เสี่ยงหลุดแผน ≥ " + t.atrisk + "% · หลุดแผน &lt; " + t.atrisk +
+    "% — KPI ตัวเลข: Achievement = Actual/Plan (higher) หรือ Plan/Actual (lower) · KPI Milestone: Achievement = 100% + (ระดับที่ทำได้ − Plan Level) × " + LEVEL_STEP +
+    "% โดยต่ำกว่า L1 นับเป็นระดับ 0 · Target Level ของ KPI ตัวเลขคำนวณจาก L1–L5 ที่ระบุ</footer>";
+}
+
+function kpiSubText(k) {
+  return [
+    k.period ? esc(k.period) : "",
+    k.type === "level" ? "Milestone" : (k.direction === "lower" ? "ยิ่งต่ำยิ่งดี" : ""),
+    weightText(k) ? "weight " + esc(weightText(k)) : "",
+  ].filter(Boolean).join(" · ");
+}
+
+/* ---- style 1: table ---- */
+function reportTableHTML(groups) {
+  const t = state.thresholds;
+  let html = "";
+  groups.forEach((list, cat) => {
+    const rows = list.map((k) => {
+      const ach = achievementOf(k);
+      const s = statusOf(ach, t);
+      const meta = s ? STATUS_META[s] : NA_META;
+      const isLevel = k.type === "level";
+      const gap = gapOf(k);
+      const lv = levelScoreOf(k);
+      const sub = kpiSubText(k);
+      const noPrefix = numOrNull(k.no) != null ? '<span class="mono">' + fmtNum(k.no, 0) + ".</span> " : "";
+
+      let planCell, actualCell, compareCell;
+      if (isLevel) {
+        const plTxt = (k.targetsText && k.targetsText["l" + (k.planLevel || 3)]) || "";
+        planCell = '<span class="mono">L' + (k.planLevel || 3) + "</span>" +
+          (plTxt ? '<div class="kct-td-sub">' + esc(plTxt) + "</div>" : "");
+        actualCell = '<span class="mono">' + (k.actualLevel == null ? "—" : levelLabel(k.actualLevel)) + "</span>" +
+          (k.actualText ? '<div class="kct-td-sub">' + esc(k.actualText) + "</div>" : "");
+        const d = k.actualLevel == null ? null : k.actualLevel - (k.planLevel || 3);
+        compareCell = (d == null
+          ? '<span class="kct-td-badge mono">—</span>'
+          : '<span class="kct-td-badge mono" style="color:' + (d >= 0 ? "#2E7D32" : "#C62828") + '">' +
+            (d >= 0 ? "▲ +" : "▼ −") + Math.abs(d) + " ระดับ</span>") +
+          '<div class="kct-td-sub mono">Achv. ' + fmtPct(ach) + "</div>";
+      } else {
+        planCell = '<span class="mono">' + fmtNum(k.plan) + (numOrNull(k.plan) != null ? " " + esc(k.unit) : "") + "</span>";
+        actualCell = '<span class="mono">' + fmtNum(k.actual) + (numOrNull(k.actual) != null ? " " + esc(k.unit) : "") + "</span>";
+        const good = gap ? gap.raw >= 0 : true;
+        const arrow = k.direction === "lower" ? (good ? "▼" : "▲") : (good ? "▲" : "▼");
+        compareCell = (gap
+          ? '<span class="kct-td-badge mono" style="color:' + (good ? "#2E7D32" : "#C62828") + '">' +
+            arrow + " " + (good ? "+" : "−") + (gap.pct != null ? fmtNum(Math.abs(gap.pct), 1) : "—") + "%</span>"
+          : '<span class="kct-td-badge mono">—</span>') +
+          '<div class="kct-td-sub mono">Achv. ' + fmtPct(ach) +
+          (lv ? " · " + (lv.metLv > 0 ? "L" + lv.metLv : "&lt;L" + lv.points[0].lv) + " (" + lv.score.toFixed(2) + "/5)" : "") +
+          "</div>";
+      }
+
+      return "<tr>" +
+        '<td><div class="kct-td-name">' + noPrefix + esc(dispName(k)) + "</div>" +
+          (sub ? '<div class="kct-td-sub">' + sub + "</div>" : "") + "</td>" +
+        "<td>" + planCell + "</td>" +
+        "<td>" + actualCell + "</td>" +
+        '<td class="num">' + compareCell + "</td>" +
+        '<td><span class="kct-status" style="color:' + meta.color + ";background:" + meta.bg + '">' + meta.label + "</span></td>" +
+        '<td><div class="kct-td-note">' + (k.note ? esc(k.note) : "—") + "</div>" +
+          (k.owner ? '<div class="kct-td-sub">' + esc(k.owner) + "</div>" : "") + "</td>" +
+      "</tr>";
+    }).join("");
+    html +=
+      '<section class="kct-report-group">' +
+        '<h2 class="kct-report-cat">' + esc(cat) + ' <span class="mono">(' + list.length + ")</span></h2>" +
+        '<table class="kct-table"><thead><tr>' +
+          '<th style="width:22%">รายการ</th><th style="width:17%">แผน (Plan)</th><th style="width:17%">ค่าจริง (Actual)</th>' +
+          '<th class="num">ผลเทียบแผน</th><th>สถานะ</th><th style="width:20%">คำอธิบาย / ผู้รับผิดชอบ</th>' +
+        "</tr></thead><tbody>" + rows + "</tbody></table></section>";
+  });
+  return html;
+}
+
+/* ---- style 2: targets scorecard (ตาราง Target L1–L5 แบบภาพต้นฉบับ) ---- */
+function targetCellContent(k, lvIndex) {
+  if (k.type === "level") {
+    const txt = k.targetsText && k.targetsText["l" + lvIndex];
+    return txt && txt.trim() ? esc(txt) : '<span style="color:#9DAABB">NA</span>';
+  }
+  const v = numOrNull(k.targets && k.targets["l" + lvIndex]);
+  return v != null ? '<span class="mono">' + fmtNum(v) + (k.unit ? " " + esc(k.unit) : "") + "</span>"
+    : '<span style="color:#9DAABB">NA</span>';
+}
+function reportTargetsHTML(groups) {
+  const t = state.thresholds;
+  let html =
+    '<div class="kct-tlegend">' +
+      '<span><span class="box" style="background:#E3F0F7;border:2px solid #146C94"></span>ช่องที่ไฮไลต์ = ระดับที่ทำได้ในปัจจุบัน</span>' +
+      "<span>NA = ไม่ได้กำหนดเป้าระดับนั้น</span>" +
+      "<span>PLAN = ระดับที่ถือเป็นเป้าหมายตามแผน</span>" +
+    "</div>";
+  groups.forEach((list, cat) => {
+    const rows = list.map((k) => {
+      const ach = achievementOf(k);
+      const s = statusOf(ach, t);
+      const meta = s ? STATUS_META[s] : NA_META;
+      const lv = levelScoreOf(k);
+      const hitLv = lv ? lv.metLv : null;
+      const pl = k.type === "level" ? (k.planLevel || 3) : 3;
+
+      let cells = "";
+      for (let i = 1; i <= 5; i++) {
+        const isHit = hitLv != null && hitLv === i;
+        const isPlan = i === pl;
+        cells += '<td class="c' + (isHit ? " hit" : "") + '"' +
+          (isHit ? ' style="background:' + meta.bg + ";border:2px solid " + meta.color + '"' : "") + ">" +
+          (isPlan ? '<div class="sub mono" style="font-weight:600">PLAN</div>' : "") +
+          targetCellContent(k, i) +
+        "</td>";
+      }
+      const noTxt = numOrNull(k.no) != null ? fmtNum(k.no, 0) : "";
+      const statusLine = '<div class="sub"><span class="mono" style="color:' + meta.color + ";font-weight:600" + '">' +
+        (hitLv != null ? (hitLv > 0 ? "ทำได้ L" + hitLv : "ต่ำกว่า L1") : "ยังไม่ประเมิน") +
+        "</span> · Achv. " + fmtPct(ach) + "</div>";
+      return "<tr>" +
+        '<td class="c mono">' + noTxt + "</td>" +
+        '<td class="namecell">' + esc(dispName(k)) + statusLine +
+          (k.type === "level" && k.actualText ? '<div class="sub">ผลจริง: ' + esc(k.actualText) + "</div>" : "") +
+        "</td>" +
+        '<td class="c mono">' + (weightText(k) ? esc(weightText(k)) : "—") + "</td>" +
+        cells +
+      "</tr>";
+    }).join("");
+    html +=
+      '<section class="kct-report-group">' +
+        '<h2 class="kct-report-cat">' + esc(cat) + ' <span class="mono">(' + list.length + ")</span></h2>" +
+        '<table class="kct-ttable"><thead><tr>' +
+          '<th style="width:34px">#</th><th style="width:16%">KPI Name</th><th style="width:58px">Wt.</th>' +
+          "<th>Target (L1)</th><th>Target (L2)</th><th>Target (L3)</th><th>Target (L4)</th><th>Target (L5)</th>" +
+        "</tr></thead><tbody>" + rows + "</tbody></table></section>";
+  });
+  return html;
+}
+
+/* ---- style 3: charts ---- */
+function donutSVG(counts, size) {
+  const total = STATUS_ORDER.reduce((s, k) => s + counts[k], 0);
+  const r = 54, cw = 22, c = size / 2;
+  const circ = 2 * Math.PI * r;
+  let offset = 0;
+  let segs = "";
+  if (total === 0) {
+    segs = '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="none" stroke="#E4E9EE" stroke-width="' + cw + '"/>';
+  } else {
+    STATUS_ORDER.forEach((s) => {
+      if (!counts[s]) return;
+      const frac = counts[s] / total;
+      const len = frac * circ;
+      segs += '<circle cx="' + c + '" cy="' + c + '" r="' + r + '" fill="none" stroke="' + STATUS_META[s].color +
+        '" stroke-width="' + cw + '" stroke-dasharray="' + len + " " + (circ - len) +
+        '" stroke-dashoffset="' + (-offset) + '" transform="rotate(-90 ' + c + " " + c + ')"/>';
+      offset += len;
+    });
+  }
+  return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 ' + size + " " + size + '" role="img" aria-label="สัดส่วน KPI ตามสถานะ">' +
+    segs +
+    '<text x="' + c + '" y="' + (c - 4) + '" text-anchor="middle" font-size="26" font-weight="600" fill="#17253B" font-family="IBM Plex Mono, monospace">' + total + "</text>" +
+    '<text x="' + c + '" y="' + (c + 16) + '" text-anchor="middle" font-size="11" fill="#5B6B7F">KPI</text>' +
+  "</svg>";
+}
+
+function reportChartsHTML(groups, counts) {
+  const t = state.thresholds;
+  const CAP = 160;
+
+  const legend = STATUS_ORDER.map((s) =>
+    '<div class="row"><span class="dot" style="background:' + STATUS_META[s].color + '"></span>' +
+    STATUS_META[s].label + '<span class="n mono">' + counts[s] + "</span></div>").join("");
+
+  let html =
+    '<section class="kct-chart-summary">' +
+      donutSVG(counts, 150) +
+      '<div class="kct-donut-legend">' + legend + "</div>" +
+    "</section>";
+
+  const catData = [];
+  groups.forEach((list, cat) => {
+    const r = overallAchievement(list, t);
+    if (r.overall != null) catData.push({ cat: cat, val: r.overall, st: statusOf(r.overall, t) });
+  });
+  if (catData.length) {
+    const capped = (v) => Math.min(v, CAP);
+    const H = 160;
+    const cols = catData.map((d) => {
+      const h = Math.max(4, (capped(d.val) / CAP) * H);
+      const color = d.st ? STATUS_META[d.st].color : "#5B6B7F";
+      return '<div class="kct-catcol">' +
+        '<div class="val mono" style="color:' + color + '">' + fmtPct(d.val, 0) + "</div>" +
+        '<div class="bar" style="height:' + h + "px;background:" + color + '"></div>' +
+        '<div class="lbl">' + esc(d.cat) + "</div></div>";
+    }).join("");
+    const planY = H - (100 / CAP) * H;
+    html +=
+      '<section class="kct-report-group kct-catchart-wrap">' +
+        '<h2 class="kct-report-cat">Achievement รายหมวดหมู่ (ถ่วงน้ำหนัก)</h2>' +
+        '<div class="kct-catchart" style="height:' + (H + 30) + 'px">' +
+          '<div class="kct-cat-planline" style="top:' + (planY + 30) + 'px"><span>PLAN 100%</span></div>' +
+          cols +
+        "</div>" +
+      "</section>";
+  }
+
+  groups.forEach((list, cat) => {
+    const rows = list.map((k) => {
+      const ach = achievementOf(k);
+      const s = statusOf(ach, t);
+      const meta = s ? STATUS_META[s] : NA_META;
+      const w = ach == null ? 0 : Math.min(100, (Math.min(ach, CAP) / CAP) * 100);
+      const nm = (numOrNull(k.no) != null ? fmtNum(k.no, 0) + ". " : "") + dispName(k);
+      return '<div class="kct-bar-row">' +
+        '<div class="kct-bar-name" title="' + esc(nm) + '">' + esc(nm) + "</div>" +
+        '<div class="kct-bar-track">' +
+          (ach != null ? '<div class="kct-bar-fill" style="width:' + w + "%;background:" + meta.color + '"></div>' : "") +
+          '<div class="kct-bar-plan" style="left:' + (100 / CAP) * 100 + '%"></div>' +
+        "</div>" +
+        '<div class="kct-bar-val mono" style="color:' + meta.color + '">' + fmtPct(ach, 1) +
+          (ach != null && ach > CAP ? " ▸" : "") + "</div>" +
+      "</div>";
+    }).join("");
+    html +=
+      '<section class="kct-report-group">' +
+        '<h2 class="kct-report-cat">' + esc(cat) + ' <span class="mono">(' + list.length + ")</span></h2>" +
+        '<div class="kct-barchart">' + rows +
+          '<div class="kct-chart-axis"><span></span><div class="scale">' +
+            '<span style="left:0%">0%</span>' +
+            '<span style="left:' + (100 / CAP) * 100 + '%">100% (PLAN)</span>' +
+            '<span style="left:100%">' + CAP + "%+</span>" +
+          "</div><span></span></div>" +
+        "</div>" +
+      "</section>";
+  });
+  return html;
+}
+
+/* ---- style 4: executive scorecard ---- */
+function reportScorecardHTML(groups) {
+  const t = state.thresholds;
+  const CAP = 160;
+
+  let cards = "";
+  groups.forEach((list, cat) => {
+    const r = overallAchievement(list, t);
+    const st = statusOf(r.overall, t);
+    const color = st ? STATUS_META[st].color : "#5B6B7F";
+    const kpiRows = list.map((k) => {
+      const ach = achievementOf(k);
+      const s = statusOf(ach, t);
+      const meta = s ? STATUS_META[s] : NA_META;
+      const w = ach == null ? 0 : Math.min(100, (Math.min(ach, CAP) / CAP) * 100);
+      const lv = levelScoreOf(k);
+      const nm = (numOrNull(k.no) != null ? fmtNum(k.no, 0) + ". " : "") + dispName(k);
+      const lvTxt = lv
+        ? (k.type === "level"
+            ? (k.actualLevel != null ? levelLabel(k.actualLevel) : "")
+            : (lv.metLv > 0 ? "L" + lv.metLv : "&lt;L" + lv.points[0].lv))
+        : "";
+      return '<div class="kct-x-kpi">' +
+        '<div class="kct-x-kpi-top">' +
+          '<span class="nm" title="' + esc(nm) + '">' + esc(nm) + "</span>" +
+          '<span class="vv mono" style="color:' + meta.color + '">' + fmtPct(ach, 0) +
+            (lvTxt ? ' <span style="font-weight:400;color:#5B6B7F">· ' + lvTxt + "</span>" : "") +
+          "</span>" +
+        "</div>" +
+        '<div class="kct-x-track">' +
+          (ach != null ? '<div class="kct-x-fill" style="width:' + w + "%;background:" + meta.color + '"></div>' : "") +
+          '<div class="kct-x-plan" style="left:' + (100 / CAP) * 100 + '%"></div>' +
+        "</div>" +
+      "</div>";
+    }).join("");
+    cards +=
+      '<div class="kct-x-card">' +
+        '<div class="kct-x-cat">' +
+          '<span class="name">' + esc(cat) + "</span>" +
+          '<span class="achv mono" style="color:' + color + '">' + fmtPct(r.overall, 1) + "</span>" +
+        "</div>" + kpiRows +
+      "</div>";
+  });
+
+  const watch = state.kpis
+    .map((k) => ({ k: k, ach: achievementOf(k) }))
+    .filter((x) => { const s = statusOf(x.ach, t); return s === "atrisk" || s === "offplan"; })
+    .sort((a, b) => a.ach - b.ach);
+  let watchHTML = "";
+  if (watch.length) {
+    watchHTML = '<section class="kct-watch"><h3>⚠ Watchlist — ต้องติดตามใกล้ชิด (' + watch.length + " รายการ)</h3>" +
+      watch.map((x) => {
+        const k = x.k;
+        const gap = gapOf(k);
+        const s = statusOf(x.ach, t);
+        const meta = STATUS_META[s];
+        const extra = k.type === "level" && k.actualLevel != null
+          ? '<span class="mono" style="color:#C62828">' + levelLabel(k.actualLevel) + " / Plan L" + (k.planLevel || 3) + "</span>"
+          : (gap ? '<span class="mono" style="color:#C62828">' + (gap.raw >= 0 ? "+" : "−") + fmtNum(Math.abs(gap.raw)) + " " + esc(k.unit) + "</span>" : "");
+        return '<div class="kct-watch-row">' +
+          '<span class="nm">' + esc(dispName(k)) + ' <span style="font-weight:400;color:#5B6B7F">(' + esc(dispCat(k)) + ")</span></span>" +
+          '<span class="mono" style="color:' + meta.color + '">' + fmtPct(x.ach, 1) + "</span>" +
+          extra +
+          (k.owner ? '<span style="color:#5B6B7F">' + esc(k.owner) + "</span>" : "") +
+        "</div>";
+      }).join("") +
+    "</section>";
+  }
+
+  return '<div class="kct-x-grid">' + cards + "</div>" + watchHTML;
+}
+
+/* ---- report root ---- */
+function renderReport() {
+  const t = state.thresholds;
+  const res = overallAchievement(state.kpis, t);
+  const st = statusOf(res.overall, t);
+  const groups = reportGroups();
+
+  let body;
+  if (state.kpis.length === 0) {
+    body = '<div class="kct-empty">ยังไม่มีข้อมูล KPI สำหรับออกรายงาน</div>';
+  } else if (state.reportStyle === "targets") {
+    body = reportTargetsHTML(groups);
+  } else if (state.reportStyle === "charts") {
+    body = reportChartsHTML(groups, res.counts);
+  } else if (state.reportStyle === "scorecard") {
+    body = reportScorecardHTML(groups);
+  } else {
+    body = reportTableHTML(groups);
+  }
+
+  document.getElementById("viewReport").innerHTML =
+    '<div class="kct-report-toolbar no-print">' +
+      '<div class="left"><span>รูปแบบรายงาน</span>' +
+        '<select id="reportStyleSelect">' +
+          '<option value="table"' + (state.reportStyle === "table" ? " selected" : "") + ">ตารางสรุป (Table)</option>" +
+          '<option value="targets"' + (state.reportStyle === "targets" ? " selected" : "") + ">ตาราง Target L1–L5 (Scorecard)</option>" +
+          '<option value="charts"' + (state.reportStyle === "charts" ? " selected" : "") + ">กราฟ (Charts)</option>" +
+          '<option value="scorecard"' + (state.reportStyle === "scorecard" ? " selected" : "") + ">Executive Scorecard</option>" +
+        "</select>" +
+        "<span>จัดหน้าสำหรับพิมพ์ / PDF</span>" +
+      "</div>" +
+      '<button class="kct-btn primary" id="btnPrint">พิมพ์ / บันทึก PDF</button>' +
+    "</div>" +
+    reportHeadHTML(res.overall, res.counts, st) +
+    body +
+    reportFootHTML();
+
+  const btn = document.getElementById("btnPrint");
+  if (btn) btn.addEventListener("click", () => window.print());
+  const sel = document.getElementById("reportStyleSelect");
+  if (sel) sel.addEventListener("change", (e) => { state.reportStyle = e.target.value; renderReport(); });
+}
+
+/* ---------------- render root ---------------- */
+function render() {
+  const dash = document.getElementById("viewDashboard");
+  const rep = document.getElementById("viewReport");
+  document.getElementById("btnModeDash").classList.toggle("on", state.mode === "dashboard");
+  document.getElementById("btnModeReport").classList.toggle("on", state.mode === "report");
+  document.getElementById("btnAdd").style.display = state.mode === "dashboard" ? "" : "none";
+  if (state.mode === "dashboard") {
+    dash.hidden = false; rep.hidden = true;
+    renderHero(); renderTabs(); renderList();
+  } else {
+    dash.hidden = true; rep.hidden = false;
+    renderReport();
+  }
+}
+
+/* ---------------- quick edit: numeric actual ---------------- */
+function startQuickEdit(card, k) {
+  const btn = card.querySelector('[data-action="quick"]');
+  if (!btn) return;
+  const wrap = document.createElement("span");
+  wrap.className = "kct-quick-wrap";
+  wrap.innerHTML = '<input class="kct-quick-input" type="number" step="any" />' +
+    '<span class="kct-quick-unit">' + esc(k.unit) + "</span>";
+  btn.replaceWith(wrap);
+  const input = wrap.querySelector("input");
+  input.value = numOrNull(k.actual) != null ? k.actual : "";
+  input.focus(); input.select();
+  let done = false;
+  const finish = (save) => {
+    if (done) return; done = true;
+    if (save) {
+      const v = numOrNull(input.value);
+      if (v !== numOrNull(k.actual)) {
+        k.actual = v; k.updatedAt = new Date().toISOString();
+        commit(); return;
+      }
+    }
+    render();
+  };
+  input.addEventListener("blur", () => finish(true));
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") finish(true);
+    if (e.key === "Escape") finish(false);
+  });
+}
+
+/* ---------------- quick edit: milestone level ---------------- */
+function startQuickLevelEdit(card, k) {
+  const btn = card.querySelector('[data-action="quick-level"]');
+  if (!btn) return;
+  const sel = document.createElement("select");
+  sel.className = "kct-quick-select";
+  const opts = [{ v: "", t: "— ยังไม่ประเมิน" }, { v: "0", t: "ต่ำกว่า L1" }];
+  for (let i = 1; i <= 5; i++) opts.push({ v: String(i), t: "L" + i });
+  sel.innerHTML = opts.map((o) =>
+    '<option value="' + o.v + '"' +
+    ((k.actualLevel == null && o.v === "") || (k.actualLevel != null && String(k.actualLevel) === o.v) ? " selected" : "") +
+    ">" + o.t + "</option>").join("");
+  btn.replaceWith(sel);
+  sel.focus();
+  let done = false;
+  const finish = (save) => {
+    if (done) return; done = true;
+    if (save) {
+      const v = sel.value === "" ? null : Number(sel.value);
+      if (v !== k.actualLevel) {
+        k.actualLevel = v; k.updatedAt = new Date().toISOString();
+        commit(); return;
+      }
+    }
+    render();
+  };
+  sel.addEventListener("change", () => finish(true));
+  sel.addEventListener("blur", () => finish(true));
+  sel.addEventListener("keydown", (e) => { if (e.key === "Escape") finish(false); });
+}
+
+/* ---------------- modal helpers ---------------- */
+function openModal(html) {
+  const overlay = document.getElementById("modalOverlay");
+  document.getElementById("modalBox").innerHTML = html;
+  overlay.hidden = false;
+}
+function closeModal() {
+  document.getElementById("modalOverlay").hidden = true;
+  document.getElementById("modalBox").innerHTML = "";
+}
+
+/* ---------------- KPI form (ทุกช่องไม่บังคับกรอก) ---------------- */
+function openKpiForm(kpi) {
+  const isEdit = !!kpi;
+  const f = kpi || {
+    no: null, type: "numeric",
+    category: "", name: "", unit: "", plan: null, actual: null,
+    direction: "higher", period: "FY2026", owner: "",
+    weight: null, weightUnit: "%", priority: "กลาง",
+    targets: {}, targetsText: {}, actualLevel: null, actualText: "", planLevel: 3,
+    note: "",
+  };
+  const cats = Array.from(new Set(state.kpis.map((k) => k.category).filter(Boolean)));
+  const vOrEmpty = (v) => (v == null ? "" : v);
+
+  const lvNumInputs = LV_KEYS.map((key, i) =>
+    "<label>L" + (i + 1) +
+    '<input id="f_' + key + '" class="mono" type="number" step="any" value="' +
+    esc(vOrEmpty(f.targets && f.targets[key])) + '" /></label>').join("");
+
+  const lvTextInputs = LV_KEYS.map((key, i) =>
+    '<div class="row"><span>L' + (i + 1) + "</span>" +
+    '<input id="f_t_' + key + '" value="' + esc((f.targetsText && f.targetsText[key]) || "") +
+    '" placeholder="เว้นว่าง = NA (ไม่กำหนดระดับนี้)" /></div>').join("");
+
+  const alOptions = [{ v: "", t: "— ยังไม่ประเมิน" }, { v: "0", t: "ต่ำกว่า L1" }]
+    .concat([1, 2, 3, 4, 5].map((i) => ({ v: String(i), t: "L" + i })))
+    .map((o) => '<option value="' + o.v + '"' +
+      ((f.actualLevel == null && o.v === "") || (f.actualLevel != null && String(f.actualLevel) === o.v) ? " selected" : "") +
+      ">" + o.t + "</option>").join("");
+
+  const plOptions = [1, 2, 3, 4, 5].map((i) =>
+    '<option value="' + i + '"' + ((f.planLevel || 3) === i ? " selected" : "") + ">L" + i + "</option>").join("");
+
+  openModal(
+    '<div class="kct-modal-head"><span>' + (isEdit ? "แก้ไข KPI" : "เพิ่ม KPI ใหม่") + "</span>" +
+      '<button class="kct-btn tiny ghost" data-action="close-modal" aria-label="ปิด">✕</button></div>' +
+    '<div class="kct-form"><div class="kct-form-grid">' +
+
+      '<label class="span2">ประเภทการวัด' +
+        '<select id="f_type">' +
+          '<option value="numeric"' + (f.type !== "level" ? " selected" : "") + ">ตัวเลข (Quantitative) — Plan/Actual เป็นตัวเลข</option>" +
+          '<option value="level"' + (f.type === "level" ? " selected" : "") + ">Milestone (Qualitative) — Target L1–L5 เป็นข้อความ เลือกระดับที่ทำได้</option>" +
+        "</select>" +
+        '<span class="kct-type-hint">เลือก Milestone สำหรับ KPI เชิงคุณภาพ เช่น "เสนอดีลเข้าบอร์ดอย่างน้อย 2 ดีล"</span>' +
+      "</label>" +
+
+      '<label>ลำดับที่ (No.)<input id="f_no" class="mono" type="number" step="1" value="' + esc(vOrEmpty(f.no)) + '" placeholder="เช่น 1" /></label>' +
+      '<label>หมวดหมู่<input id="f_category" list="kct-cats" value="' + esc(f.category) + '" placeholder="เช่น VC, VB, Key enablers" />' +
+        '<datalist id="kct-cats">' + cats.map((c) => '<option value="' + esc(c) + '"></option>').join("") + "</datalist></label>" +
+      '<label class="span2">ชื่อ KPI<input id="f_name" value="' + esc(f.name) + '" placeholder="เช่น New investment" /></label>' +
+
+      /* ---- numeric section ---- */
+      '<div class="span2" id="f_sec_numeric" style="display:' + (f.type === "level" ? "none" : "contents") + '">' +
+        '<label>หน่วย<input id="f_unit" value="' + esc(f.unit) + '" placeholder="เช่น ล้านบาท, %, x, ราย" /></label>' +
+        '<label>ทิศทางที่ดี<select id="f_direction">' +
+          '<option value="higher"' + (f.direction !== "lower" ? " selected" : "") + ">ยิ่งสูงยิ่งดี (higher)</option>" +
+          '<option value="lower"' + (f.direction === "lower" ? " selected" : "") + ">ยิ่งต่ำยิ่งดี (lower) เช่น ต้นทุน</option>" +
+        "</select></label>" +
+        '<label>Plan (เป้าหมาย)<input id="f_plan" class="mono" type="number" step="any" value="' + esc(vOrEmpty(f.plan)) + '" /></label>' +
+        '<label>Actual (ค่าจริง)<input id="f_actual" class="mono" type="number" step="any" value="' + esc(vOrEmpty(f.actual)) + '" /></label>' +
+        '<label class="span2">Target ระดับ L1–L5 แบบตัวเลข <span style="font-weight:400">(ระบุเฉพาะระดับที่ใช้ ปกติ L3 = Plan)</span>' +
+          '<div class="kct-lv-grid">' + lvNumInputs + "</div>" +
+        "</label>" +
+      "</div>" +
+
+      /* ---- level (milestone) section ---- */
+      '<div class="span2" id="f_sec_level" style="display:' + (f.type === "level" ? "contents" : "none") + '">' +
+        '<label class="span2">Target L1–L5 (ข้อความ) <span style="font-weight:400">— เว้นว่างระดับที่เป็น NA ได้</span>' +
+          '<div class="kct-lvtext-grid">' + lvTextInputs + "</div>" +
+        "</label>" +
+        '<label>ระดับที่ทำได้ (ผลประเมินปัจจุบัน)<select id="f_actualLevel">' + alOptions + "</select></label>" +
+        '<label>ระดับที่ถือเป็นแผน (Plan Level)<select id="f_planLevel">' + plOptions + "</select></label>" +
+        '<label class="span2">ผลจริงโดยสรุป (Actual)<input id="f_actualText" value="' + esc(f.actualText || "") + '" placeholder="เช่น ปิดดีลใหม่แล้ว 2 ดีล + follow-on 1 ดีล" /></label>' +
+      "</div>" +
+
+      '<label>ช่วงเวลา (Period)<input id="f_period" value="' + esc(f.period) + '" placeholder="เช่น FY2026" /></label>' +
+      '<label>Weight (น้ำหนักคะแนน) และหน่วย' +
+        '<div class="kct-w-pair">' +
+          '<input id="f_weight" class="mono" type="number" step="any" value="' + esc(vOrEmpty(f.weight)) + '" placeholder="เช่น 10" />' +
+          '<input id="f_weightUnit" list="kct-wunits" value="' + esc(f.weightUnit || "") + '" placeholder="%, pts, …" />' +
+          '<datalist id="kct-wunits">' + WEIGHT_UNITS.map((u) => '<option value="' + esc(u) + '"></option>').join("") + "</datalist>" +
+        "</div>" +
+      "</label>" +
+      '<label>Priority<select id="f_priority">' +
+        PRIORITIES.map((p) => '<option value="' + p + '"' + (f.priority === p ? " selected" : "") + ">" + p + "</option>").join("") +
+      "</select></label>" +
+      '<label>ผู้รับผิดชอบ (Owner)<input id="f_owner" value="' + esc(f.owner) + '" /></label>' +
+      '<label class="span2">คำอธิบายเพิ่มเติม (Note)<textarea id="f_note" rows="2">' + esc(f.note) + "</textarea></label>" +
+    "</div>" +
+    '<div class="kct-form-err" id="f_err"></div>' +
+    '<div class="kct-form-actions">' +
+      (isEdit ? '<span id="delZone"><button class="kct-btn danger ghost" data-action="ask-delete">ลบ KPI นี้</button></span>' : "") +
+      '<span style="flex:1"></span>' +
+      '<button class="kct-btn ghost" data-action="close-modal">ยกเลิก</button>' +
+      '<button class="kct-btn primary" data-action="save-kpi">' + (isEdit ? "บันทึกการแก้ไข" : "เพิ่ม KPI") + "</button>" +
+    "</div></div>"
+  );
+
+  const box = document.getElementById("modalBox");
+
+  /* toggle sections by type */
+  document.getElementById("f_type").addEventListener("change", (e) => {
+    const isLv = e.target.value === "level";
+    document.getElementById("f_sec_numeric").style.display = isLv ? "none" : "contents";
+    document.getElementById("f_sec_level").style.display = isLv ? "contents" : "none";
+  });
+
+  box.querySelector('[data-action="save-kpi"]').addEventListener("click", () => {
+    const val = (id) => document.getElementById(id).value;
+    const type = val("f_type") === "level" ? "level" : "numeric";
+    const targets = {}, targetsText = {};
+    LV_KEYS.forEach((key) => {
+      targets[key] = numOrNull(val("f_" + key));
+      targetsText[key] = val("f_t_" + key).trim();
+    });
+    const alRaw = val("f_actualLevel");
+    const data = {
+      no: numOrNull(val("f_no")),
+      type: type,
+      category: val("f_category").trim(),
+      name: val("f_name").trim(),
+      unit: val("f_unit").trim(),
+      plan: numOrNull(val("f_plan")),
+      actual: numOrNull(val("f_actual")),
+      direction: val("f_direction") === "lower" ? "lower" : "higher",
+      period: val("f_period").trim(),
+      owner: val("f_owner").trim(),
+      weight: numOrNull(val("f_weight")),
+      weightUnit: val("f_weightUnit").trim(),
+      priority: val("f_priority"),
+      targets: targets,
+      targetsText: targetsText,
+      actualLevel: alRaw === "" ? null : Number(alRaw),
+      actualText: val("f_actualText").trim(),
+      planLevel: Number(val("f_planLevel")) || 3,
+      note: val("f_note").trim(),
+      updatedAt: new Date().toISOString(),
+    };
+    if (isEdit) {
+      Object.assign(kpi, normalizeKpi(Object.assign({}, kpi, data)));
+      notify("บันทึกการแก้ไข KPI แล้ว");
+    } else {
+      state.kpis.push(normalizeKpi(Object.assign({ id: uid() }, data)));
+      notify("เพิ่ม KPI ใหม่แล้ว");
+    }
+    closeModal(); commit();
+  });
+
+  if (isEdit) {
+    box.querySelector('[data-action="ask-delete"]').addEventListener("click", () => {
+      document.getElementById("delZone").innerHTML =
+        '<span class="kct-del-confirm">ยืนยันลบ? ' +
+        '<button class="kct-btn danger solid tiny" data-action="do-delete">ลบถาวร</button> ' +
+        '<button class="kct-btn ghost tiny" data-action="cancel-delete">ยกเลิก</button></span>';
+      box.querySelector('[data-action="do-delete"]').addEventListener("click", () => {
+        state.kpis = state.kpis.filter((x) => x.id !== kpi.id);
+        closeModal(); notify("ลบ KPI แล้ว"); commit();
+      });
+      box.querySelector('[data-action="cancel-delete"]').addEventListener("click", () => openKpiForm(kpi));
+    });
+  }
+}
+
+/* ---------------- threshold settings ---------------- */
+function openSettings() {
+  const t = state.thresholds;
+  const row = (key, desc, inputHTML) =>
+    '<div class="kct-th-row"><span class="kct-th-label">' +
+      '<span class="kct-th-dot" style="background:' + STATUS_META[key].color + '"></span>' +
+      STATUS_META[key].label + "<small>" + desc + "</small></span>" +
+      '<span class="kct-th-input">' + inputHTML + "</span></div>";
+
+  openModal(
+    '<div class="kct-modal-head"><span>ตั้งค่าเกณฑ์สถานะ (Threshold)</span>' +
+      '<button class="kct-btn tiny ghost" data-action="close-modal" aria-label="ปิด">✕</button></div>' +
+    '<div class="kct-form">' +
+      row("excellent", "Achievement ตั้งแต่ค่านี้ขึ้นไป",
+        '≥ <input id="t_excellent" type="number" step="any" value="' + t.excellent + '" /> %') +
+      row("onplan", "Achievement ตั้งแต่ค่านี้ขึ้นไป (แต่ไม่ถึงยอดเยี่ยม)",
+        '≥ <input id="t_onplan" type="number" step="any" value="' + t.onplan + '" /> %') +
+      row("atrisk", "Achievement ตั้งแต่ค่านี้ขึ้นไป — ต่ำกว่านี้ถือว่าหลุดแผน",
+        '≥ <input id="t_atrisk" type="number" step="any" value="' + t.atrisk + '" /> %') +
+      row("offplan", 'ต่ำกว่าเกณฑ์ "เสี่ยงหลุดแผน" โดยอัตโนมัติ',
+        '<span class="mono" id="t_off_preview">&lt; ' + t.atrisk + " %</span>") +
+      '<div class="kct-td-sub" style="margin-top:10px">หมายเหตุ: KPI แบบ Milestone แปลงระดับเป็น Achievement โดย 1 ระดับ = ' + LEVEL_STEP + "% (Plan Level = 100%) เช่น ทำได้สูงกว่าแผน 2 ระดับ = 120%</div>" +
+      '<div class="kct-form-err" id="t_err"></div>' +
+      '<div class="kct-form-actions">' +
+        '<button class="kct-btn ghost" data-action="reset-th">คืนค่าเริ่มต้น (120 / 100 / 85)</button>' +
+        '<span style="flex:1"></span>' +
+        '<button class="kct-btn ghost" data-action="close-modal">ยกเลิก</button>' +
+        '<button class="kct-btn primary" data-action="save-th">บันทึกเกณฑ์</button>' +
+      "</div></div>"
+  );
+
+  const box = document.getElementById("modalBox");
+  const atriskInput = document.getElementById("t_atrisk");
+  atriskInput.addEventListener("input", () => {
+    document.getElementById("t_off_preview").innerHTML = "&lt; " + esc(atriskInput.value || "—") + " %";
+  });
+  box.querySelector('[data-action="reset-th"]').addEventListener("click", () => {
+    document.getElementById("t_excellent").value = DEFAULT_THRESHOLDS.excellent;
+    document.getElementById("t_onplan").value = DEFAULT_THRESHOLDS.onplan;
+    atriskInput.value = DEFAULT_THRESHOLDS.atrisk;
+    document.getElementById("t_off_preview").innerHTML = "&lt; " + DEFAULT_THRESHOLDS.atrisk + " %";
+  });
+  box.querySelector('[data-action="save-th"]').addEventListener("click", () => {
+    const ex = Number(document.getElementById("t_excellent").value);
+    const on = Number(document.getElementById("t_onplan").value);
+    const ar = Number(atriskInput.value);
+    const err = document.getElementById("t_err");
+    if (![ex, on, ar].every(isFinite)) { err.textContent = "ทุกค่าต้องเป็นตัวเลข"; return; }
+    if (!(ex > on && on > ar)) { err.textContent = "เกณฑ์ต้องเรียงจากมากไปน้อย: ยอดเยี่ยม > ตามแผน > เสี่ยงหลุดแผน"; return; }
+    state.thresholds = { excellent: ex, onplan: on, atrisk: ar };
+    closeModal(); notify("อัปเดตเกณฑ์สถานะแล้ว"); commit();
+  });
+}
+
+/* ---------------- export / import ---------------- */
+function doExport() {
+  const payload = {
+    app: "KPI Control Tower", version: 3,
+    exportedAt: new Date().toISOString(),
+    thresholds: state.thresholds, kpis: state.kpis,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "kpi-control-tower-" + new Date().toISOString().slice(0, 10) + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  notify("ส่งออกไฟล์ JSON แล้ว");
+}
+
+function doImport(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      const list = Array.isArray(parsed) ? parsed : parsed.kpis;
+      if (!Array.isArray(list)) throw new Error("format");
+      state.kpis = list.map(normalizeKpi);
+      if (parsed.thresholds) {
+        state.thresholds = Object.assign({}, DEFAULT_THRESHOLDS, parsed.thresholds);
+      }
+      notify("นำเข้าแล้ว " + state.kpis.length + " KPI");
+      commit();
+    } catch (e) {
+      notify("นำเข้าไม่สำเร็จ — รูปแบบไฟล์ไม่ถูกต้อง");
+    }
+  };
+  reader.readAsText(file);
+}
+
+/* ---------------- wire up events ---------------- */
+document.getElementById("btnModeDash").addEventListener("click", () => { state.mode = "dashboard"; render(); });
+document.getElementById("btnModeReport").addEventListener("click", () => { state.mode = "report"; render(); });
+document.getElementById("btnAdd").addEventListener("click", () => openKpiForm(null));
+document.getElementById("btnSettings").addEventListener("click", openSettings);
+document.getElementById("btnExport").addEventListener("click", doExport);
+document.getElementById("btnImport").addEventListener("click", () => document.getElementById("importFile").click());
+document.getElementById("importFile").addEventListener("change", (e) => {
+  const f = e.target.files && e.target.files[0];
+  if (f) doImport(f);
+  e.target.value = "";
+});
+document.getElementById("sortSelect").addEventListener("change", (e) => { state.sortBy = e.target.value; renderList(); });
+
+/* tabs (delegation) */
+document.getElementById("tabs").addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-cat]");
+  if (!btn) return;
+  state.activeCat = btn.getAttribute("data-cat");
+  renderTabs(); renderList();
+});
+
+/* card actions (delegation) */
+document.getElementById("kpiList").addEventListener("click", (e) => {
+  const actionEl = e.target.closest("[data-action]");
+  if (!actionEl) return;
+  const card = e.target.closest(".kct-card");
+  if (!card) return;
+  const k = state.kpis.find((x) => x.id === card.getAttribute("data-id"));
+  if (!k) return;
+  const action = actionEl.getAttribute("data-action");
+  if (action === "edit") openKpiForm(k);
+  else if (action === "quick") startQuickEdit(card, k);
+  else if (action === "quick-level") startQuickLevelEdit(card, k);
+});
+
+/* modal: close by ✕ / ยกเลิก / คลิกพื้นหลัง / Esc */
+document.getElementById("modalOverlay").addEventListener("click", (e) => {
+  if (e.target === e.currentTarget) { closeModal(); return; }
+  const closeBtn = e.target.closest('[data-action="close-modal"]');
+  if (closeBtn) closeModal();
+});
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && !document.getElementById("modalOverlay").hidden) closeModal();
+});
+
+/* ---------------- boot ---------------- */
+(async function init() {
+  await loadState();
+  if (!store.persistent) {
+    notify("เบราว์เซอร์นี้ปิด localStorage — ข้อมูลจะหายเมื่อปิดหน้า กรุณาใช้ Export JSON เก็บข้อมูลไว้");
+  }
+  render();
+  scheduleSave();
+})();
+</script>
+</body>
+</html>
